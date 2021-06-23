@@ -13,7 +13,7 @@ import (
 var verbose = flag.Bool("v", false, "show verbose progress messages")
 
 func printDiskUsage(nfiles, nbytes int64) {
-	fmt.Printf("%d files   %.2f GB\n", nfiles, float64(nbytes)/(1<<30)) // 1<<30 就是 2**30 就是 1024*1024*1024
+	fmt.Printf("%d files   %.2f GB\n", nfiles, float64(nbytes)/(1<<30)) // 1024*1024*1024
 }
 
 func walkDir(dir string, n *sync.WaitGroup, fileSizes chan<- int64) {
