@@ -2,17 +2,25 @@ package cake_test
 
 import (
 	"../cake"
+	"flag"
 	"testing"
 	"time"
 )
 
-var defaults = cake.Shop{
-	Verbose:      true,
-	Cakes:        20,
-	BakeTime:     10 * time.Millisecond,
-	NumIcers:     1,
-	IceTime:      10 * time.Millisecond,
-	InscribeTime: 10 * time.Millisecond,
+var defaults cake.Shop
+
+func init() {
+	testing.Init()
+	flag.Parse()
+
+	defaults = cake.Shop{
+		Verbose:      testing.Verbose(),
+		Cakes:        20,
+		BakeTime:     10 * time.Millisecond,
+		NumIcers:     1,
+		IceTime:      10 * time.Millisecond,
+		InscribeTime: 10 * time.Millisecond,
+	}
 }
 
 func Benchmark(b *testing.B) {
