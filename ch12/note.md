@@ -109,5 +109,50 @@ d := reflect.ValueOf(&x).Elem()   // d refers to the variable x
 px := d.Addr().Interface().(*int) // px := &x
 *px = 3                           // x = 3
 fmt.Println(x)                    // "3"
+
+平常由编译器来检查的那些可赋值性条件，在这种情况下则是在运行时由 Set 方法来检查。上面的变量和值都是 int 类型，但如果变量类型是 int64， 这个程序就会崩溃，所以确保这个值对于变量类型是可赋值的。
+
+d.Set(reflect.ValueOf(int64(5))) // panic: int64 is not assignable to int
+
+当然，在一个不可寻址的 reflect.Value 上调用 Set 方法也会崩溃
+x := 2
+b := reflect.ValueOf(x)
+b.Set(reflect.ValueOf(3)) // panic: Set using unaddressable value
 ```
 
+还有很多用于基本类型的 Set 方法，SetInt、SetUint、SetString和SetFloat等，这些方法有一定程度的容错性，只要变量类型是某种带符号的整数，比如 SetInt， 甚至可以是底层类型为带符号整数的命名类型，都可以成功。如果值太大了还会无提示地截断，但需要注意的是，在指向 `interface{}` 变量的 `reflect.Value` 上调用 SetInt会崩溃，尽管使用 Set 就没有问题。
+
+```go
+x := 1
+rx := reflect.ValueOf(&x).Elem()
+rx.SetInt(2)                     // OK, x = 2
+rx.Set(reflect.ValueOf(3))       // OK, x = 3
+rx.SetString("hello")            // panic: string is not assignable to int
+rx.Set(reflect.ValueOf("hello")) // panic: string is not assignable to int
+
+var y interface{}
+ry := reflect.ValueOf(&y).Elem()
+ry.SetInt(2)                     // panic: SetInt called on interface Value
+ry.Set(reflect.ValueOf(3))       // OK, y = int(3)
+ry.SetString("hello")            // panic: SetString called on interface Value
+ry.Set(reflect.ValueOf("hello")) // OK, y = "hello"
+```
+
+
+
+**一个可寻址的 `refletct.Value` 会记录它是否通过遍历一个未导出字段来获得的，如果是这样，则不允许修改。因此，CanAddr方法并不能正确反映一个变量是否是可以被修改的。另一个相关的方法CanSet是用于检查对应的 `reflect.Value` 是否是可取地址并可被修改的**
+
+```go
+fmt.Println(fd.CanAddr(), fd.CanSet()) // "true false"
+```
+
+
+
+#### 12.9 注意事项
+
+反射是一个强大并富有表达力的工具，但是它应该被小心地使用，原因有三：
+
+- 基于反射的代码是比较脆弱的。对于每一个会导致编译器报告类型错误的问题，在反射中都有与之相对应的误用问题，不同的是编译器会在构建时马上报告错误，而反射则是在真正运行到的时候才会抛出panic异常
+  - 反射同样降低了程序的安全性，还影响了自动化重构和分析工具的准确性，因为它们无法识别运行时才能确认的类型信息
+- 即使对应类型提供了相同文档，但是反射的操作不能做静态类型检查，而且大量反射的代码通常难以理解。总是需要小心翼翼地为每个导出的类型和其它接受interface{}或reflect.Value类型参数的函数维护说明文档
+- 基于反射的代码通常比正常的代码运行速度慢一到两个数量级。对于一个典型的项目，大部分函数的性能和程序的整体性能关系不大，所以当反射能使程序更加清晰的时候可以考虑使用。测试是一个特别适合使用反射的场景，因为每个测试的数据集都很小。但是对于性能关键路径的函数，最好避免使用反射
